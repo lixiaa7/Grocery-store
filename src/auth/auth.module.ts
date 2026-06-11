@@ -6,6 +6,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersService } from '../users/users.service';
 import { AuthHelper } from './auth.helper';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -15,11 +16,12 @@ import { AuthHelper } from './auth.helper';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
+          //TODO: maybe we can change env name here? Because as a developer I don't understand whether it's in seconds or milliseconds
           expiresIn: Number(configService.getOrThrow<string>('JWT_EXPIRES_IN')),
         },
       }),
     }),
-    UsersService,
+    UsersModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthHelper, JwtStrategy],

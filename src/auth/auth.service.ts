@@ -31,7 +31,8 @@ export class AuthService {
 
     //TODO: best practice says to us that we should on /register endpoint return access_token and refresh_token as well to avoid bad user experience
     //TODO: in this scenario use will must to register and then rewrite his password and email for /login endpoint to get tokens back
-    const user = this.usersService.createUser(email, hashPassword);
+    //TODO: make sure that you will save new refresh token to the users page as well
+    const user = await this.usersService.createUser(email, hashPassword);
 
     return;
   }
