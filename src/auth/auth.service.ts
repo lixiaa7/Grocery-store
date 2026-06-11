@@ -5,135 +5,80 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
-import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { createHash } from 'crypto';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
+import { UsersService } from '../users/users.service';
+import { AuthHelper } from './auth.helper';
+import { IAuthResponse } from './types';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private prisma: PrismaService,
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+    private readonly authHelper: AuthHelper,
   ) {}
 
-  async registerUser(dto: RegisterDto) {
-    const isExistUser = await this.findUserByEmail(dto);
+  //TODO: (thoughts): you should always define firstly: WHAT all functions should return from TypeScript perspective
+  public async registerUser(dto: RegisterDto): Promise<void> {
+    const { email, password } = dto;
+
+    const isExistUser = await this.usersService.findUserByEmail(email);
+
     if (isExistUser) {
       throw new ConflictException('User already exists');
     }
-    const hashPassword = bcrypt.hashSync(dto.password, 7);
-    return this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash: hashPassword,
-      },
-      select: {
-        id: true,
-        email: true,
-      },
-    });
+
+    const hashPassword = bcrypt.hashSync(password, 7);
+
+    //TODO: best practice says to us that we should on /register endpoint return access_token and refresh_token as well to avoid bad user experience
+    //TODO: in this scenario use will must to register and then rewrite his password and email for /login endpoint to get tokens back
+    //TODO: make sure that you will save new refresh token to the users page as well
+    const user = await this.usersService.createUser(email, hashPassword);
+
+    return;
   }
 
-  async loginUser(dto: RegisterDto) {
-    const user = await this.findUserByEmail(dto);
+  public async loginUser(dto: RegisterDto): Promise<IAuthResponse> {
+    const { email } = dto;
+
+    const user = await this.usersService.findUserByEmail(email);
+
     if (!user) {
       throw new BadRequestException('User with this email not exist');
     }
+
     const validPassword = bcrypt.compareSync(dto.password, user.passwordHash);
+
     if (!validPassword) {
       throw new BadRequestException('Invalid password');
     }
-    const accessToken = await this.generateAccessToken(user);
-    const refreshToken = await this.generateRefreshToken(user);
 
-    await this.saveRefreshToken(user.id, refreshToken);
+    const accessToken = await this.authHelper.generateAccessToken(user);
+    const refreshToken = await this.authHelper.generateRefreshToken(user.id, user.email);
+    const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-      },
+    await this.usersService.updateUser(user.id, { hashedRefreshToken });
+
+    const response: IAuthResponse = {
+      user,
       accessToken,
       refreshToken,
     };
+
+    return response;
   }
 
-  private async findUserByEmail(dto: RegisterDto) {
-    const { email } = dto;
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-    return user;
-  }
+  public async refresh(refreshToken: string): Promise<IAuthResponse> {
+    const payload = await this.authHelper.verifyRefreshToken(refreshToken);
 
-  private async generateAccessToken(user: { id: number; email: string }) {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
-
-    return this.jwtService.signAsync(payload);
-  }
-
-  private async generateRefreshToken(user: { id: number; email: string }) {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-    };
-
-    return this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: Number(this.configService.getOrThrow<string>('JWT_REFRESH_EXPIRES_IN')),
-    });
-  }
-
-  // bcrypt обрезает вход до 72 байт, а JWT длиннее и имеет общий префикс,
-  // поэтому токен сначала сворачиваем в SHA-256 (фиксированные 64 байта).
-  private sha256(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
-  }
-
-  private async saveRefreshToken(userId: number, refreshToken: string) {
-    const refreshTokenHash = await bcrypt.hash(this.sha256(refreshToken), 10);
-
-    await this.prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        refreshTokenHash,
-      },
-    });
-  }
-
-  async refresh(refreshToken: string) {
-    let payload: { sub: number; email: string };
-    try {
-      payload = await this.jwtService.verifyAsync<{
-        sub: number;
-        email: string;
-      }>(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id: payload.sub,
-      },
-    });
+    const user = await this.usersService.findUserById(payload.sub);
 
     if (!user || !user.refreshTokenHash) {
       throw new UnauthorizedException('Access denied');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(
-      this.sha256(refreshToken),
+    //TODO: better to rename. isTokenMatchingStored or something
+    const isRefreshTokenValid = await this.authHelper.isRefreshTokenValid(
+      refreshToken,
       user.refreshTokenHash,
     );
 
@@ -141,11 +86,12 @@ export class AuthService {
       throw new UnauthorizedException('Access denied');
     }
 
-    const accessToken = await this.generateAccessToken(user);
-    const newRefreshToken = await this.generateRefreshToken(user);
+    const accessToken = await this.authHelper.generateAccessToken(user);
+    const newRefreshToken = await this.authHelper.generateRefreshToken(user.id, user.email);
+    const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
-    await this.saveRefreshToken(user.id, newRefreshToken);
+    await this.usersService.updateUser(user.id, { hashedRefreshToken });
 
-    return { accessToken, refreshToken: newRefreshToken };
+    return { user, accessToken, refreshToken: newRefreshToken };
   }
 }
