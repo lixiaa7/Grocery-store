@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: grocery_store_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: grocery_store
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
