@@ -1,16 +1,19 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UsersService } from '../users/users.service';
 import { ITokenPayload } from './types';
+import { REDIS_CLIENT } from '../redis/redis.module';
+import Redis from 'ioredis';
 
 @Injectable()
 export class AuthHelper {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    @Inject(REDIS_CLIENT)
+    private readonly redis: Redis,
   ) {}
 
   public async generateAccessToken(user: { id: number; email: string }) {
@@ -50,13 +53,25 @@ export class AuthHelper {
     return bcrypt.hash(createHash('sha256').update(token).digest('hex'), 10);
   }
 
-  public async isRefreshTokenValid(
-    hashedRefreshToken: string,
+  public async isTokenMatchingStored(
+    refreshToken: string,
     hashedTokenFromDB: string,
   ): Promise<boolean> {
     return bcrypt.compare(
-      createHash('sha256').update(hashedRefreshToken).digest('hex'),
+      createHash('sha256').update(refreshToken).digest('hex'),
       hashedTokenFromDB,
     );
+  }
+
+  async saveRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
+    await this.redis.set(`refresh-token:${userId}`, hashedRefreshToken, 'EX', 60 * 60 * 24 * 7);
+  }
+
+  async getRefreshToken(userId: number): Promise<string | null> {
+    return this.redis.get(`refresh-token:${userId}`);
+  }
+
+  async deleteRefreshToken(userId: number): Promise<void> {
+    await this.redis.del(`refresh-token:${userId}`);
   }
 }

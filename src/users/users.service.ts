@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from '../generated/prisma/client';
-import * as bcrypt from 'bcrypt';
 import { IUpdateUser } from './types';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   public async createUser(email: string, hashedPassword: string): Promise<User> {
     return this.prisma.user.create({
@@ -40,19 +41,6 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: {
         id: userId,
-      },
-    });
-  }
-
-  public async saveRefreshToken(userId: number, hashedRefreshToken: string): Promise<User> {
-    const refreshTokenHash = await bcrypt.hash(hashedRefreshToken, 10);
-
-    return this.prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        refreshTokenHash,
       },
     });
   }

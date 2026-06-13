@@ -4,9 +4,9 @@ import { AuthController } from './auth.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { UsersService } from '../users/users.service';
 import { AuthHelper } from './auth.helper';
 import { UsersModule } from '../users/users.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -22,6 +22,7 @@ import { UsersModule } from '../users/users.module';
       }),
     }),
     UsersModule,
+    RedisModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, AuthHelper, JwtStrategy],

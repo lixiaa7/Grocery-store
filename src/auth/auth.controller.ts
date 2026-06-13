@@ -3,23 +3,24 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { IAuthResponse } from './types';
+import { ITokensResponse } from './types';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('registration')
-  registration(@Body() dto: RegisterDto): Promise<void> {
+  registration(@Body() dto: RegisterDto): Promise<ITokensResponse> {
     return this.authService.registerUser(dto);
   }
 
   @Post('login')
-  async login(@Body() dto: LoginDto): Promise<IAuthResponse> {
+  async login(@Body() dto: LoginDto): Promise<ITokensResponse> {
     return this.authService.loginUser(dto);
   }
+
   @Post('refresh')
-  async refresh(@Body() dto: RefreshTokenDto): Promise<IAuthResponse> {
+  async refresh(@Body() dto: RefreshTokenDto): Promise<ITokensResponse> {
     return this.authService.refresh(dto.refreshToken);
   }
 
