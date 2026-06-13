@@ -63,15 +63,15 @@ export class AuthHelper {
     );
   }
 
-  async saveRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
-    await this.redis.set(`refresh-token:${userId}`, hashedRefreshToken, 'EX', 60 * 60 * 24 * 7);
-  }
-
-  async getRefreshToken(userId: number): Promise<string | null> {
-    return this.redis.get(`refresh-token:${userId}`);
-  }
-
-  async deleteRefreshToken(userId: number): Promise<void> {
-    await this.redis.del(`refresh-token:${userId}`);
-  }
+  // async saveRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
+  //   await this.redis.set(`refresh-token:${userId}`, hashedRefreshToken, 'EX', 60 * 60 * 24 * 7);
+  // }
+  //
+  // async getRefreshToken(userId: number): Promise<string | null> {
+  //   return this.redis.get(`refresh-token:${userId}`);
+  // }
+  //
+  // async deleteRefreshToken(userId: number): Promise<void> {
+  //   await this.redis.del(`refresh-token:${userId}`);
+  // }
 }

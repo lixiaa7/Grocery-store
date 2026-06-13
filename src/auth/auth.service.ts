@@ -11,8 +11,8 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AuthHelper } from './auth.helper';
 import { ITokensResponse } from './types';
-import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis/redis.module';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +20,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly authHelper: AuthHelper,
     @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
+    private readonly redisService: RedisService,
   ) {}
 
   public async registerUser(dto: RegisterDto): Promise<ITokensResponse> {
@@ -39,7 +39,7 @@ export class AuthService {
     const refreshToken = await this.authHelper.generateRefreshToken(user.id, user.email);
     const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
-    await this.authHelper.saveRefreshToken(user.id, hashedRefreshToken);
+    await this.redisService.saveRefreshToken(user.id, hashedRefreshToken);
 
     return { accessToken, refreshToken };
   }
@@ -64,7 +64,7 @@ export class AuthService {
     const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
     await this.usersService.updateUser(user.id, { hashedRefreshToken });
-    await this.authHelper.saveRefreshToken(user.id, hashedRefreshToken);
+    await this.redisService.saveRefreshToken(user.id, hashedRefreshToken);
 
     const response: ITokensResponse = {
       accessToken,
@@ -83,7 +83,7 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    const existingRefreshToken = await this.authHelper.getRefreshToken(user.id);
+    const existingRefreshToken = await this.redisService.getRefreshToken(user.id);
 
     if (!existingRefreshToken) {
       throw new NotFoundException('Refresh token not found');
@@ -103,7 +103,7 @@ export class AuthService {
     const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
     await this.usersService.updateUser(user.id, { hashedRefreshToken });
-    await this.authHelper.saveRefreshToken(user.id, hashedRefreshToken);
+    await this.redisService.saveRefreshToken(user.id, hashedRefreshToken);
 
     return { accessToken, refreshToken: newRefreshToken };
   }

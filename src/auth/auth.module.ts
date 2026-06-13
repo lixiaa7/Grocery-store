@@ -16,8 +16,7 @@ import { RedisModule } from '../redis/redis.module';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          //TODO: maybe we can change env name here? Because as a developer I don't understand whether it's in seconds or milliseconds
-          expiresIn: Number(configService.getOrThrow<string>('JWT_EXPIRES_IN')),
+          expiresIn: Number(configService.getOrThrow<string>('JWT_EXPIRES_IN_SECONDS')),
         },
       }),
     }),
