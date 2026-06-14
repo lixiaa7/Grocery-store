@@ -1,7 +1,8 @@
-import { Inject } from '@nestjs/common';
-import { REDIS_CLIENT } from './redis.module';
+import { Inject, Injectable } from '@nestjs/common';
+import { REDIS_CLIENT } from './redis.constants';
 import Redis from 'ioredis';
 
+@Injectable()
 export class RedisService {
   private refreshTokenKey = (userId: number) => `refresh-token:${userId}`;
 

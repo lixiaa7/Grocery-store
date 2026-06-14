@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -11,7 +10,6 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { AuthHelper } from './auth.helper';
 import { ITokensResponse } from './types';
-import { REDIS_CLIENT } from '../redis/redis.module';
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
@@ -19,7 +17,6 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly authHelper: AuthHelper,
-    @Inject(REDIS_CLIENT)
     private readonly redisService: RedisService,
   ) {}
 
@@ -63,15 +60,9 @@ export class AuthService {
     const refreshToken = await this.authHelper.generateRefreshToken(user.id, user.email);
     const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
-    await this.usersService.updateUser(user.id, { hashedRefreshToken });
     await this.redisService.saveRefreshToken(user.id, hashedRefreshToken);
 
-    const response: ITokensResponse = {
-      accessToken,
-      refreshToken,
-    };
-
-    return response;
+    return { accessToken, refreshToken };
   }
 
   public async refresh(refreshToken: string): Promise<ITokensResponse> {
@@ -102,7 +93,6 @@ export class AuthService {
     const newRefreshToken = await this.authHelper.generateRefreshToken(user.id, user.email);
     const hashedRefreshToken = await this.authHelper.hashRefreshToken(refreshToken);
 
-    await this.usersService.updateUser(user.id, { hashedRefreshToken });
     await this.redisService.saveRefreshToken(user.id, hashedRefreshToken);
 
     return { accessToken, refreshToken: newRefreshToken };

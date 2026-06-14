@@ -1,13 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from '../generated/prisma/client';
-import { IUpdateUser } from './types';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   public async createUser(email: string, hashedPassword: string): Promise<User> {
     return this.prisma.user.create({
@@ -18,18 +15,18 @@ export class UsersService {
     });
   }
 
-  public async updateUser(userId: number, data: IUpdateUser): Promise<User> {
-    const { hashedRefreshToken } = data;
-
-    return this.prisma.user.update({
-      where: {
-        id: userId,
-      },
-      data: {
-        refreshTokenHash: hashedRefreshToken,
-      },
-    });
-  }
+  // public async updateUser(userId: number, data: IUpdateUser): Promise<User> {
+  //   const { hashedRefreshToken } = data;
+  //
+  //   return this.prisma.user.update({
+  //     where: {
+  //       id: userId,
+  //     },
+  //     data: {
+  //       refreshTokenHash: hashedRefreshToken,
+  //     },
+  //   });
+  // }
 
   public async findUserByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
