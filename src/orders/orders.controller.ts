@@ -20,6 +20,8 @@ export class OrdersController {
     @CurrentUserId() userId: number,
     @Param('id', ParseIntPipe) orderId: number,
   ) {
+    //TODO: this is bad practice. Using another service from another module. You should create appropriate function inside ordersService
+    //TODO: and create something like 'stripe.helper.ts' with some function that will just return created session.id and url. Other logic should be handled by ordersService
     return this.stripeService.createCheckoutSessionForOrder(userId, orderId);
   }
 

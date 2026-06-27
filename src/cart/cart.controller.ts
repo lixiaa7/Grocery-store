@@ -5,6 +5,7 @@ import { CartItem } from '../generated/prisma/client';
 import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 import { UpdateCartDto } from './dto/update-cart.dto';
 
+//TODO: just thoughts. If some user know another userId - can this user manage other carts of another users?
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}

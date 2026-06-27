@@ -18,6 +18,7 @@ export class StripePrismaService {
       // PENDING_PAYMENT -> PAID. Concurrent/duplicate deliveries get count 0
       // and skip the rest, which makes processing idempotent and prevents the
       // stock from being decremented twice.
+      //TODO: read more about transactions
       const claimed = await tx.order.updateMany({
         where: {
           id: order.id,

@@ -9,6 +9,7 @@ import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { StripeModule } from './stripe/stripe.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { StripeModule } from './stripe/stripe.module';
     CartModule,
     OrdersModule,
     StripeModule,
+    PrismaModule,
   ],
   providers: [
     {

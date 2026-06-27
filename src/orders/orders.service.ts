@@ -11,6 +11,7 @@ export class OrdersService {
     private readonly ordersHelper: OrdersHelper,
   ) {}
 
+  //TODO: looks pretty beautiful how you are using prisma services here. Well done
   public async createOrderFromCart(userId: number): Promise<OrderWithItems> {
     const cart = await this.ordersPrismaService.findCartWithItems(userId);
 

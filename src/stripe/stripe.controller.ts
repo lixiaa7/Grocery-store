@@ -15,6 +15,7 @@ export class StripeController {
     @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
   ) {
+    //TODO: this condition should be part of stripeService. Controllers just calling handler functions but don't have any logic inside
     if (!signature) {
       throw new BadRequestException('Stripe signature is missing');
     }
