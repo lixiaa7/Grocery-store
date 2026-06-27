@@ -1,16 +1,18 @@
-import { IsNotEmpty, IsNumber, IsPositive, IsString, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class ProductDto {
   @Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsNumber()
+  @IsInt()
   @Min(0)
   quantity: number;
 
-  @IsNumber()
-  @IsPositive()
+  // Price in the smallest currency unit (e.g. cents) — must be an integer for Stripe.
+  @IsInt()
+  @Min(0)
   price: number;
 }

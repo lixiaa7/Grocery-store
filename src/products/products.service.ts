@@ -1,33 +1,36 @@
-import { Body, Injectable, UseGuards } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Role } from '../generated/prisma/enums';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
+import { ProductDto } from './dto/product.dto';
+import { ProductsPrismaService } from './products.prisma.service';
+import { Product } from '../generated/prisma/client';
 
 @Injectable()
 export class ProductsService {
+  constructor(private readonly productsPrismaService: ProductsPrismaService) {}
 
-  @UseGuards(RolesGuard)
-  @Roles(Role.ADMIN)
-  create(@Body() UpdateProductDto: UpdateProductDto) {
-    return 'This action adds a new product';
+  public async createProduct(productDto: ProductDto): Promise<Product> {
+    return this.productsPrismaService.createProduct(productDto);
   }
 
-  get() {
-    return `This action returns all products`;
+  public async getProducts(): Promise<Product[]> {
+    return this.productsPrismaService.getProducts();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} product`;
+  public async findProductById(id: number): Promise<Product> {
+    const foundProduct = await this.productsPrismaService.findProductById(id);
+
+    if (!foundProduct) {
+      throw new NotFoundException();
+    }
+
+    return foundProduct;
   }
 
-  // @Roles(Role.ADMIN)
-  update(id: number, updateProductDto: UpdateProductDto) {
-    return `This action updates a #${id} product`;
+  public async updateProduct(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+    return this.productsPrismaService.updateProduct(id, updateProductDto);
   }
 
-  // @Roles(Role.ADMIN)
-  remove(id: number) {
-    return `This action removes a #${id} product`;
+  public async removeProduct(id: number): Promise<Product> {
+    return this.productsPrismaService.removeProduct(id);
   }
 }

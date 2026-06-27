@@ -1,31 +1,19 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { ITokenPayload } from './types';
-import { REDIS_CLIENT } from '../redis/redis.constants';
-import Redis from 'ioredis';
-import { Role } from '../generated/prisma/enums';
-import { RegisterDto } from './dto/register.dto';
+import { ITokenPayload, ITokensResponse } from './types';
 
 @Injectable()
 export class AuthHelper {
+  private readonly saltRounds: number;
+
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
-  ) {}
-
-  public async generateAccessToken(user: { id: number; email: string; role: Role }) {
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-    };
-
-    return this.jwtService.signAsync(payload);
+  ) {
+    this.saltRounds = Number(this.configService.getOrThrow<string>('SALT_ROUNDS'));
   }
 
   public async verifyRefreshToken(refreshToken: string): Promise<ITokenPayload> {
@@ -39,13 +27,11 @@ export class AuthHelper {
       throw new UnauthorizedException('Invalid refresh token');
     }
   }
+  private async generateAccessToken(payload: ITokenPayload): Promise<string> {
+    return this.jwtService.signAsync(payload);
+  }
 
-  public async generateRefreshToken(userId: number, email: string) {
-    const payload = {
-      sub: userId,
-      email: email,
-    };
-
+  private async generateRefreshToken(payload: ITokenPayload): Promise<string> {
     return this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       expiresIn: Number(this.configService.getOrThrow<string>('JWT_REFRESH_EXPIRES_IN_SECONDS')),
@@ -53,7 +39,13 @@ export class AuthHelper {
   }
 
   public hashRefreshToken(token: string): Promise<string> {
-    return bcrypt.hash(createHash('sha256').update(token).digest('hex'), 10);
+    return bcrypt.hash(createHash('sha256').update(token).digest('hex'), this.saltRounds);
+  }
+  public async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, this.saltRounds);
+  }
+  public async isValidPassword(dtoPassword: string, passwordHash: string): Promise<boolean> {
+    return bcrypt.compare(dtoPassword, passwordHash);
   }
 
   public async isTokenMatchingStored(
@@ -66,23 +58,23 @@ export class AuthHelper {
     );
   }
 
-  public isAdmin(dto: RegisterDto) {
-    const adminEmails = this.configService
-      .getOrThrow<string>('ADMIN_EMAILS')
-      .split(',')
-      .map((email) => email.trim().toLowerCase());
+  public isAdmin(userPassword: string | undefined): boolean {
+    if (!userPassword) return false;
+    const adminPassword = this.configService.getOrThrow<string>('ADMIN_PASSWORD');
 
-    const role = adminEmails.includes(dto.email.toLowerCase()) ? Role.ADMIN : Role.USER;
+    const isAdmin = adminPassword === userPassword;
+    return isAdmin;
   }
-  // async saveRefreshToken(userId: number, hashedRefreshToken: string): Promise<void> {
-  //   await this.redis.set(`refresh-token:${userId}`, hashedRefreshToken, 'EX', 60 * 60 * 24 * 7);
-  // }
-  //
-  // async getRefreshToken(userId: number): Promise<string | null> {
-  //   return this.redis.get(`refresh-token:${userId}`);
-  // }
-  //
-  // async deleteRefreshToken(userId: number): Promise<void> {
-  //   await this.redis.del(`refresh-token:${userId}`);
-  // }
+
+  public async generateTokens(subject: ITokenPayload): Promise<ITokensResponse> {
+    const payload: ITokenPayload = {
+      id: subject.id,
+      email: subject.email,
+      role: subject.role,
+    };
+    const accessToken = await this.generateAccessToken(payload);
+    const refreshToken = await this.generateRefreshToken(payload);
+
+    return { accessToken, refreshToken };
+  }
 }

@@ -3,45 +3,34 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { ITokensResponse } from './types';
+import { ITokensResponse, LogoutResponse } from './types';
+import { Public } from '../common/decorators/public.decorator';
+import { CurrentUserId } from '../common/decorators/current-user-id.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('registration')
   registration(@Body() dto: RegisterDto): Promise<ITokensResponse> {
     return this.authService.registerUser(dto);
   }
 
+  @Public()
   @Post('login')
   async login(@Body() dto: LoginDto): Promise<ITokensResponse> {
     return this.authService.loginUser(dto);
   }
 
+  @Public()
   @Post('refresh')
   async refresh(@Body() dto: RefreshTokenDto): Promise<ITokensResponse> {
     return this.authService.refresh(dto.refreshToken);
   }
 
-  //
-  // @Get()
-  // findAll() {
-  //   return this.authService.findAll();
-  // }
-  //
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.authService.findOne(+id);
-  // }
-  //
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-  //   return this.authService.update(+id, updateAuthDto);
-  // }
-  //
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.authService.remove(+id);
-  // }
+  @Post('logout')
+  async logout(@CurrentUserId() userId: number): Promise<LogoutResponse> {
+    return this.authService.logout(userId);
+  }
 }

@@ -1,36 +1,42 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
 import { ProductsService } from './products.service';
-import { ProductDto } from './dto/create-product.dto';
+import { ProductDto } from './dto/product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { Role } from '../generated/prisma/enums';
 
-@UseGuards(JwtAuthGuard)
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
-  @Post('create')
-  createProducts(@Body() ProductDto: ProductDto) {
-    return this.productsService.create(ProductDto);
+  @Roles(Role.ADMIN)
+  @Post()
+  createProducts(@Body() productDto: ProductDto) {
+    return this.productsService.createProduct(productDto);
   }
 
   @Get()
   getAllProducts() {
-    return this.productsService.get();
+    return this.productsService.getProducts();
   }
 
   @Get(':id')
-  findProductById(@Param('id') id: string) {
-    return this.productsService.findOne(+id);
+  findProductById(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.findProductById(id);
   }
 
+  @Roles(Role.ADMIN)
   @Patch(':id')
-  updateProductById(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
-    return this.productsService.update(+id, updateProductDto);
+  updateProductById(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    return this.productsService.updateProduct(id, updateProductDto);
   }
 
+  @Roles(Role.ADMIN)
   @Delete(':id')
-  removeProductById(@Param('id') id: string) {
-    return this.productsService.remove(+id);
+  removeProductById(@Param('id', ParseIntPipe) id: number) {
+    return this.productsService.removeProduct(id);
   }
 }
