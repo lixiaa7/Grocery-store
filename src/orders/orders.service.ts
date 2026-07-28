@@ -1,17 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrdersPrismaService } from './orders.prisma.service';
 import { OrdersHelper } from './orders.helper';
-import { OrderWithItems } from './types';
+import { CheckoutSessionResult, OrderWithItems } from './types';
 import { OrderStatus } from '../generated/prisma/enums';
+import { StripeService } from '../stripe/stripe.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly ordersPrismaService: OrdersPrismaService,
     private readonly ordersHelper: OrdersHelper,
+    private readonly stripeService: StripeService,
   ) {}
 
-  //TODO: looks pretty beautiful how you are using prisma services here. Well done
   public async createOrderFromCart(userId: number): Promise<OrderWithItems> {
     const cart = await this.ordersPrismaService.findCartWithItems(userId);
 
@@ -49,7 +50,6 @@ export class OrdersService {
   }
 
   public async cancelOrder(userId: number, orderId: number) {
-    // getOneOrderById already throws NotFoundException when the order is missing.
     const order = await this.getOneOrderById(userId, orderId);
 
     if (order.status === OrderStatus.PAID) {
@@ -61,5 +61,29 @@ export class OrdersService {
     }
 
     return this.ordersPrismaService.setStatusOrderToCancel(order.id);
+  }
+
+  public async createCheckoutSessionForOrder(
+    userId: number,
+    orderId: number,
+  ): Promise<CheckoutSessionResult> {
+    const order = await this.ordersPrismaService.getOrderWithItems(orderId);
+
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (order.status !== OrderStatus.PENDING_PAYMENT) {
+      throw new BadRequestException('Only pending orders can be paid');
+    }
+
+    const session = await this.stripeService.createSession(order, userId);
+
+    await this.ordersPrismaService.updateOrderSessionId(order.id, session.id);
+
+    return {
+      orderId: order.id,
+      paymentUrl: session.url,
+    };
   }
 }

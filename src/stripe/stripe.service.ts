@@ -5,6 +5,7 @@ import { OrderStatus } from '../generated/prisma/enums';
 import { OrdersPrismaService } from '../orders/orders.prisma.service';
 import { StripePrismaService } from './stripe.prisma.service';
 import { InsufficientStockError } from '../common/errors/insufficient-stock.error';
+import { OrderWithItems } from '../orders/types';
 
 @Injectable()
 export class StripeService {
@@ -18,18 +19,11 @@ export class StripeService {
     this.stripe = new Stripe(this.configService.getOrThrow<string>('STRIPE_SECRET_KEY'));
   }
 
-  public async createCheckoutSessionForOrder(userId: number, orderId: number) {
-    const order = await this.ordersPrismaService.getOrderWithItems(orderId);
-
-    if (!order || order.userId !== userId) {
-      throw new NotFoundException('Order not found');
-    }
-
-    if (order.status !== OrderStatus.PENDING_PAYMENT) {
-      throw new BadRequestException('Only pending orders can be paid');
-    }
-
-    const session = await this.stripe.checkout.sessions.create({
+  public async createSession(
+    order: OrderWithItems,
+    userId: number,
+  ): Promise<Stripe.Checkout.Session> {
+    return await this.stripe.checkout.sessions.create({
       mode: 'payment',
       success_url: this.configService.getOrThrow<string>('CLIENT_SUCCESS_URL'),
       cancel_url: this.configService.getOrThrow<string>('CLIENT_CANCEL_URL'),
@@ -48,18 +42,14 @@ export class StripeService {
         },
       })),
     });
-
-    await this.ordersPrismaService.updateOrderSessionId(order.id, session.id);
-
-    return {
-      orderId: order.id,
-      paymentUrl: session.url,
-    };
   }
 
   public async handleWebhook(rawBody: Buffer | undefined, signature: string) {
     if (!rawBody) {
       throw new BadRequestException('Raw body is missing');
+    }
+    if (!signature) {
+      throw new BadRequestException('Stripe signature is missing');
     }
 
     const webhookSecret = this.configService.getOrThrow<string>('STRIPE_WEBHOOK_SECRET');

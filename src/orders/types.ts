@@ -15,3 +15,8 @@ export type OrderWithItems = Prisma.OrderGetPayload<{
     items: true;
   };
 }>;
+
+export type CheckoutSessionResult = {
+  orderId: number;
+  paymentUrl: string | null;
+};
